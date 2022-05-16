@@ -1,0 +1,123 @@
+#!/bin/bash
+
+#<UDF name="serverversion" label="Server Version" oneOf="PC non-beta,PC Beta,Shack Live,Shack RC" />
+#<UDF name="apikey" label="API Key" example="Visit (https://pavlov-ms.vankrupt.com/servers/v1/key) to obtain an API key" />
+#<UDF name="servername" label="Server Name" example="As it should appear in-game" />
+#<UDF name="rconpw" label="RCON Password" example="Password to access admin controls" />
+
+#<UDF name="serverpw" label="Server Password" example="Must be 4 digits, or leave blank for a public server" default="" />
+#<UDF name="maprot" label="Map Rotation" example="Add maps in the form (MapId='map ID or UGC',GameMode='mode ID') separated by semicolons. Visit (http://wiki.pavlov-vr.com/index.php?title=Dedicated_server) for more details." default="(MapId='datacenter',GameMode='SND');(MapId='bridge',GameMode='TDM');(MapId='sand',GameMode='GUN')" />
+#<UDF name="maxplayers" label="Max Players" example="Set this to 10 for Shack. 24 is the max for PC." default="10" />
+#<UDF name="limitedammo" label="Limited Ammo Type" example="0=Unlimited, 1=Limited Generic, 2=Limited Specific, 3=Custom (for modders), 4=Limited Special, 5=Boxless Mode. Visit (http://wiki.pavlov-vr.com/index.php?title=Dedicated_server) for more details." oneOf="0,1,2,3,4,5" default="0" />
+#<UDF name="compmode" label="Competitive Mode" oneOf="false,true" default="false" />
+
+# Install dependencies
+apt-get -y update
+apt-get -y install gdb curl lib32gcc-s1 libc++-dev unzip ufw htop
+
+# Firewall rules
+ufw allow ssh
+ufw allow 7777
+ufw allow 8177
+ufw allow 9100/tcp
+ufw enable
+
+# Create a new user to run the server
+useradd -m -s /bin/bash steam
+
+# Download and unpack SteamCMD
+su - steam -c "mkdir ~/Steam && cd ~/Steam && curl -sqL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz | tar zxvf -"
+
+# Install the selected version of the Pavlov VR Dedicated Server
+if [ "$SERVERVERSION" == "PC non-beta" ]; then
+    su - steam -c "~/Steam/steamcmd.sh +login anonymous +force_install_dir /home/steam/pavlovserver +app_update 622970 +exit"
+elif [ "$SERVERVERSION" == "PC Beta" ]; then
+    su - steam -c "~/Steam/steamcmd.sh +login anonymous +force_install_dir /home/steam/pavlovserver +app_update 622970 -beta beta_server +exit"
+elif [ "$SERVERVERSION" == "Shack Live" ]; then
+    su - steam -c "~/Steam/steamcmd.sh +login anonymous +force_install_dir /home/steam/pavlovserver +app_update 622970 -beta shack +exit"
+elif [ "$SERVERVERSION" == "Shack RC" ]; then
+    su - steam -c "~/Steam/steamcmd.sh +login anonymous +force_install_dir /home/steam/pavlovserver +app_update 622970 -beta shack_beta +exit"
+fi
+
+# Install the Steamworks SDK
+su - steam -c "~/Steam/steamcmd.sh +login anonymous +app_update 1007 +quit"
+
+# Copy Steamworks SDK libraries so Pavlov can find them
+su - steam -c "mkdir -p ~/.steam/sdk64"
+su - steam -c "cp ~/Steam/steamapps/common/Steamworks\ SDK\ Redist/linux64/steamclient.so ~/.steam/sdk64/steamclient.so"
+su - steam -c "cp ~/Steam/steamapps/common/Steamworks\ SDK\ Redist/linux64/steamclient.so ~/pavlovserver/Pavlov/Binaries/Linux/steamclient.so"
+
+# Create some optional directories and files
+su - steam -c "mkdir -p /home/steam/pavlovserver/Pavlov/Saved/Logs"
+su - steam -c "mkdir -p /home/steam/pavlovserver/Pavlov/Saved/Config/LinuxServer"
+su - steam -c "mkdir -p /home/steam/pavlovserver/Pavlov/Saved/maps"
+su - steam -c "touch /home/steam/pavlovserver/Pavlov/Saved/Config/mods.txt"
+su - steam -c "touch /home/steam/pavlovserver/Pavlov/Saved/Config/blacklist.txt"
+su - steam -c "touch /home/steam/pavlovserver/Pavlov/Saved/Config/whitelist.txt"
+
+# Create config files
+su - steam -c "touch /home/steam/pavlovserver/Pavlov/Saved/Config/LinuxServer/Game.ini"
+su - steam -c "touch /home/steam/pavlovserver/Pavlov/Saved/Config/RconSettings.txt"
+
+# Make the server script executable
+su - steam -c "chmod +x ~/pavlovserver/PavlovServer.sh"
+
+# If the server password is empty comment it out
+[ -z "$SERVERPW" ] && PASSWORDLINE="#Password=0000" || PASSWORDLINE="Password=$SERVERPW"
+
+# Parse map rotation config
+MAPROTLINES=$(echo $MAPROT | tr -d " " | tr -s "'" '"' | tr -s ";" "\n" | sed 's/^/MapRotation=/')
+
+# Write config info to Game.ini
+cat <<EOF > /home/steam/pavlovserver/Pavlov/Saved/Config/LinuxServer/Game.ini
+[/Script/Pavlov.DedicatedServer]
+bEnabled=true
+ServerName="$SERVERNAME"
+MaxPlayers=$MAXPLAYERS #Set this to 10 for Shack. 24 is the max for PC, setting it higher will not allow players to join.
+ApiKey="$APIKEY"
+bSecured=true
+bCustomServer=true
+bVerboseLogging=false
+bCompetitive=$COMPMODE #This only works for SND
+bWhitelist=false
+RefreshListTime=120
+LimitedAmmoType=$LIMITEDAMMO
+TickRate=90
+TimeLimit=60
+$PASSWORDLINE
+#BalanceTableURL="vankruptgames/BalancingTable/main"
+$MAPROTLINES
+EOF
+
+# Symlink configs and logs to the home directory for easier access
+su - steam -c "ln -s /home/steam/pavlovserver/Pavlov/Saved/Config/LinuxServer/Game.ini Game.ini"
+su - steam -c "ln -s /home/steam/pavlovserver/Pavlov/Saved/Logs/ Logs"
+
+# Write rcon info to RconSettings.txt
+cat <<EOF > /home/steam/pavlovserver/Pavlov/Saved/Config/RconSettings.txt
+Password=$RCONPW
+Port=9100
+EOF
+
+# Register the server with systemd
+cat <<EOF > /etc/systemd/system/pavlovserver.service
+[Unit]
+Description=Pavlov VR dedicated server
+
+[Service]
+Type=simple
+WorkingDirectory=/home/steam/pavlovserver
+ExecStart=/home/steam/pavlovserver/PavlovServer.sh
+
+RestartSec=1
+Restart=always
+User=steam
+Group=steam
+
+[Install]
+WantedBy = multi-user.target
+EOF
+
+# Enable and start the server
+systemctl enable pavlovserver
+systemctl start pavlovserver
