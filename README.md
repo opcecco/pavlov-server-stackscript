@@ -10,12 +10,12 @@ Linode is a cloud hosting provider that focuses on providing Linux powered virtu
 
 2. Once you reach the cloud dashboard, navigate to the "StackScripts" menu.
 
-    (resources/screenshot.png)
-    
+    ![Linode dashboard](resources/dashboard.png)
+
 3. Click on "Community StackScripts" and search for "pavlov". You should see a script called "zutano / Pavlov VR Dedicated Server" in the search results. Click on "Deploy New Linode" to create a new server instance.
 
-    (resources/screenshot.png)
-    
+    ![StackScripts menu](resources/scriptmenu.png)
+
 4. You should see several options for configuring your new server. The following options are required:
 
     - *Server Version* - Select between PC and Shack, stable or beta branch
@@ -25,8 +25,8 @@ Linode is a cloud hosting provider that focuses on providing Linux powered virtu
     - *Server Name* - The name of your server as it should appear in the in-game server browser
     - *RCON Password* - Password to access RCON admin commands (make this hard to guess)
 
-    (resources/screenshot.png)
-    
+    ![Required settings](resources/reqsettings.png)
+
 5. The next set of options are pre-filled with some default values, but can be changed to your liking.
 
     - *Server Password* - Password required to play on your server. This **must** be either a 4-digit PIN for private servers, or left blank for public servers.
@@ -42,8 +42,8 @@ Linode is a cloud hosting provider that focuses on providing Linux powered virtu
     - *Limited Ammo Type* - 0=Unlimited, 1=Limited Generic, 2=Limited Specific, 3=Custom (for modders), 4=Limited Special, 5=Boxless Mode. Refer to the [Pavlov VR wiki](http://wiki.pavlov-vr.com/index.php?title=Dedicated_server) for details.
     - *Competitive Mode* - Turn competitive mode on or off. This only works for SND mode.
 
-    (resources/screenshot.png)
-    
+    ![Advanced settings](resources/advsettings.png)
+
 6. Below the Pavlov-specific server options you will see additional options for your server.
 
     - Only one Linux image is supported: Ubuntu 22.04 LTS
@@ -52,7 +52,7 @@ Linode is a cloud hosting provider that focuses on providing Linux powered virtu
     - Optionally change your "Linode Label" to however your want your server to appear in the dashboard
     - Enter a "Root Password" for future SSH access to your server (make this hard to guess)
 
-    (resources/screenshot.png)
+    ![Linode plan](resources/plan.png)
 
 7. The remaining settings shouldn't need to be changed. At the bottom of the page click "Create Linode".
 
@@ -61,4 +61,3 @@ Linode is a cloud hosting provider that focuses on providing Linux powered virtu
 ## Advanced configuration
 
 If you're interested in further configuration, or changing any of the options you set when you created the server, I highly suggest learning how to use SSH and reading up on how to edit your server's config files remotely. All of this info can be found on the [Pavlov VR wiki](http://wiki.pavlov-vr.com/index.php?title=Dedicated_server).
-
